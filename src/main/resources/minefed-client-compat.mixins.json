@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "team.minefed.mods.clientcompat.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "PtsWorkbenchRecipeSerializerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

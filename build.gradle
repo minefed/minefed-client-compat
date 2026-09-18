@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+}
+
+group = 'team.minefed.mods'
+version = project.mod_version
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    mavenCentral()
+}
+
+dependencies {
+    // Fabric Loader supplies Mixin at runtime. Do not bundle it or any PTS code.
+    compileOnly('net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7') {
+        transitive = false
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.encoding = 'UTF-8'
+    // All selectors use pinned production names; no Minecraft mappings are needed.
+    options.compilerArgs += ['-proc:none']
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand version: project.version
+    }
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+tasks.named('jar') {
+    from('LICENSE')
+}
+
+tasks.named('sourcesJar') {
+    from('LICENSE')
+}
