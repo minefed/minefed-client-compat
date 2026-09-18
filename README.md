@@ -31,12 +31,21 @@ Mixin at runtime.
 
 ## Validation
 
-The Minefed integration probe was run against the official artifact identified
-below. It loads this JAR's actual Mixin configuration with Sponge Mixin 0.8.7 in
-the client environment and transforms the original PTS serializer class. To
-repeat that check, retain the serializer's original network methods, use isolated
-Minecraft buffer/value fixtures, and round-trip recipes with 0, 1, and 3 material
-entries followed by a `minecraft:crafting_shaped` identifier.
+The reusable probes in `src/probe` require a local copy of the official artifact
+identified below. They check its SHA-256 and never download or redistribute it.
+Use a JDK 17 or newer, since the probe compiles its own small value/buffer fixtures:
+
+```sh
+./gradlew verifyPtsCompatibility -PptsJar=/path/to/PTS-Deco-4.0.0-Fabric1.20.4.jar
+```
+
+On Windows, use `gradlew.bat` and quote the complete `-PptsJar=...` argument when
+the path contains spaces. The task first reproduces the original failure, then
+loads the built JAR's actual Mixin configuration with Sponge Mixin 0.8.7 in the
+client environment. It transforms the original PTS serializer's network methods
+and round-trips recipes with 0, 1, and 3 material entries followed by a
+`minecraft:crafting_shaped` identifier. Generated fixtures stay in
+`build/recipe-probe`; probe code and dependencies are excluded from the mod JAR.
 
 The unmodified reader consumes one byte beyond each recipe. After the real Mixin
 transformation, exactly one redirect replaces the erroneous call, the read

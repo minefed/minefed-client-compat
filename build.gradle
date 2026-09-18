@@ -10,11 +10,17 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    probe
+}
+
 dependencies {
     // Fabric Loader supplies Mixin at runtime. Do not bundle it or any PTS code.
     compileOnly('net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7') {
         transitive = false
     }
+    // Test-only dependencies: never included in the runtime mod JAR.
+    probeImplementation 'net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7'
 }
 
 java {
@@ -48,4 +54,39 @@ tasks.named('jar') {
 
 tasks.named('sourcesJar') {
     from('LICENSE')
+}
+
+def ptsJarPath = providers.gradleProperty('ptsJar')
+def probeOutput = layout.buildDirectory.dir('recipe-probe')
+
+tasks.register('probeRecipeBoundary', JavaExec) {
+    group = 'verification'
+    description = 'Reproduces the PTS 4.0.0 overread using its original reader/writer bytecode.'
+    dependsOn tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath
+    mainClass = 'PtsRecipeBoundaryProbe'
+    doFirst {
+        if (!ptsJarPath.isPresent()) {
+            throw new GradleException('Supply the official PTS-Deco 4.0.0 JAR using -PptsJar=/path/to/PTS-Deco-4.0.0-Fabric1.20.4.jar')
+        }
+        args = [file(ptsJarPath.get()).absolutePath, probeOutput.get().asFile.absolutePath]
+    }
+}
+
+tasks.register('verifyPtsCompatibility', JavaExec) {
+    group = 'verification'
+    description = 'Applies the shipped Mixin and verifies the resulting PTS recipe packet boundaries.'
+    dependsOn tasks.named('jar'), tasks.named('probeRecipeBoundary')
+    classpath = sourceSets.probe.runtimeClasspath +
+        files(tasks.named('jar').flatMap { it.archiveFile }) +
+        files(probeOutput.map { it.dir('original-probe-classes') })
+    mainClass = 'MixinCompatProbe'
+    doFirst {
+        args = [
+            probeOutput.get().dir('original-probe-classes').asFile.absolutePath,
+            probeOutput.get().dir('mixin-probe-classes').asFile.absolutePath,
+            'minefed-client-compat.mixins.json',
+            file(ptsJarPath.get()).absolutePath
+        ]
+    }
 }
