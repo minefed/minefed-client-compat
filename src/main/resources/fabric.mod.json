@@ -20,7 +20,11 @@
       "config": "minefed-wikipedia-compat.mixins.json",
       "environment": "client"
     },
-    "minefed-pfm-perf.mixins.json"
+    "minefed-pfm-perf.mixins.json",
+    {
+      "config": "minefed-pfm-render-perf.mixins.json",
+      "environment": "client"
+    }
   ],
   "depends": {
     "fabricloader": ">=0.18.0",
