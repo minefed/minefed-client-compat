@@ -27,6 +27,7 @@ dependencies {
     compileOnly sourceSets.stubs.output
     // Test-only dependencies: never included in the runtime mod JAR.
     probeImplementation 'net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7'
+    probeImplementation 'io.github.llamalad7:mixinextras-common:0.5.0'
 }
 
 java {
@@ -98,10 +99,24 @@ tasks.register('verifyPtsCompatibility', JavaExec) {
 }
 
 def pfmJarPath = providers.gradleProperty('pfmJar')
+tasks.register('verifyPfmPerformance', JavaExec) {
+    group = 'verification'
+    description = 'Applies the shipped PFM performance Mixins to the official PFM bytecode and compares original and patched ticks.'
+    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
+    mainClass = 'PfmPerformanceProbe'
+    doFirst {
+        if (!pfmJarPath.isPresent()) {
+            throw new GradleException('Supply the official PFM 1.5.0 Fabric 1.20.4 JAR using -PpfmJar=/path/to/paladin-furniture-mod-1.5.0-fabric-mc1.20.4.jar')
+        }
+        args = [file(pfmJarPath.get()).absolutePath, layout.buildDirectory.dir('pfm-performance-probe').get().asFile.absolutePath]
+    }
+}
+
 tasks.register('verifyPfmCompatibility', JavaExec) {
     group = 'verification'
     description = 'Reproduces PFM first-frame deferral and checks the shipped Mixin with the official queue bytecode.'
-    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    dependsOn tasks.named('jar'), tasks.named('probeClasses'), tasks.named('verifyPfmPerformance')
     classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
     mainClass = 'PfmTextureBoundaryProbe'
     doFirst {

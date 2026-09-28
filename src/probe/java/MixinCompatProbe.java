@@ -67,6 +67,8 @@ public final class MixinCompatProbe {
     public static final class ProbeService extends MixinServiceAbstract implements IClassProvider,IClassBytecodeProvider {
         static byte[] originalTarget;
         static Path fixtureClasses;
+        /** Optional internal-name to bytes map, e.g. every class of an official JAR. */
+        static Map<String,byte[]> officialClasses=Map.of();
         public String getName(){return "Minefed isolated Mixin probe";}
         public boolean isValid(){return true;}
         public MixinEnvironment.Phase getInitialPhase(){return MixinEnvironment.Phase.DEFAULT;}
@@ -86,6 +88,8 @@ public final class MixinCompatProbe {
         public ClassNode getClassNode(String name,boolean transform)throws ClassNotFoundException,IOException{return getClassNode(name,transform,0);}
         public ClassNode getClassNode(String name,boolean transform,int flags)throws ClassNotFoundException,IOException{
             if(name.replace('/','.').equals(TARGET)){ClassNode node=new ClassNode();new ClassReader(originalTarget).accept(node,flags);return node;}
+            byte[] official=officialClasses.get(name.replace('.','/'));
+            if(official!=null){ClassNode node=new ClassNode();new ClassReader(official).accept(node,flags);return node;}
             String resource=name.replace('.','/')+".class";
             InputStream available=getResourceAsStream(resource);
             if(available==null && fixtureClasses!=null && Files.isRegularFile(fixtureClasses.resolve(resource)))
