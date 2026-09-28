@@ -1,8 +1,9 @@
 # Minefed Client Compatibility
 
 A client-only Fabric compatibility mod for Minecraft **1.20.4** and
-**PTS-Deco 4.0.0** and **Paladin's Furniture 1.5.0**. It requires Java 17 or newer
-and Fabric Loader 0.18.0 or newer. Install it alongside both official JARs on the client.
+**PTS-Deco 4.0.0**, **Paladin's Furniture 1.5.0**, and **DragonLib 1.20.4-2.2.24**
+(included in TrafficCraft 1.1.3). It requires Java 17 or newer and Fabric Loader
+0.18.0 or newer. Install it alongside the official JARs on the client.
 
 PTS-Deco's workbench recipe reader consumes an unused Boolean after the result
 item, but its writer never sends that Boolean. This consumes the next recipe's
@@ -79,8 +80,29 @@ disappeared. Pixel matches from actual purple items were inspected separately.
 
 ## Upstream and license
 
+### TrafficCraft / DragonLib Wikipedia requests
+
+Version 1.1.1 also identifies DragonLib's optional Wikidata API requests with a
+descriptive User-Agent and contact URL, following the
+[Wikimedia API policy](https://www.mediawiki.org/wiki/API:Etiquette#The_User-Agent_header).
+Java's generic agent received HTTP 403 for the two TrafficCraft article IDs;
+the identified request returned valid sitelinks for both. Only the single
+`URL.openStream` call in the pinned WikipediaArticle loader is redirected.
+HTTPS Wikidata requests get 10-second connection/read timeouts; other URLs and
+the existing exception/fallback behavior are preserved. No global HTTP property
+or official dependency JAR is changed.
+
+This independently authored MIT code lives here because the pack retains the
+official TrafficCraft bundle under its reviewed distribution policy. Registering
+the redirect only in a rebuilt TrafficCraft JAR would not fix that selection.
+Do not also register an equivalent TrafficCraft redirect in the same profile.
+The parent repository's `audit.verifyWikipedia` game probe checks both live
+article language maps; it is optional when running offline texture tests.
+
+### Notices
+
 This project contains independently authored MIT-licensed compatibility code.
-It does not include PTS-Deco or PFM code or assets and does not modify their distributed JARs.
+It does not include PTS-Deco, PFM or DragonLib code or assets and does not modify their distributed JARs.
 The Gradle wrapper scripts retain their upstream Apache-2.0 notices.
 
 The affected official artifact is

@@ -3,7 +3,7 @@
   "id": "minefed-client-compat",
   "version": "${version}",
   "name": "Minefed Client Compatibility",
-  "description": "Fixes PTS-Deco 4.0.0 recipe synchronization and PFM 1.5.0 first-frame herringbone textures on Minecraft 1.20.4.",
+  "description": "Fixes PTS-Deco recipes, PFM first-frame textures and DragonLib Wikidata requests on Minecraft 1.20.4.",
   "authors": ["Minefed"],
   "license": "MIT",
   "environment": "client",
@@ -15,6 +15,10 @@
     {
       "config": "minefed-pfm-compat.mixins.json",
       "environment": "client"
+    },
+    {
+      "config": "minefed-wikipedia-compat.mixins.json",
+      "environment": "client"
     }
   ],
   "depends": {
@@ -22,6 +26,7 @@
     "minecraft": "=1.20.4",
     "java": ">=17",
     "ptsdeco": "=4.0.0",
-    "pfm": "=1.5.0"
+    "pfm": "=1.5.0",
+    "dragonlib": "=1.20.4-2.2.24"
   }
 }
