@@ -117,7 +117,7 @@ public final class PfmPerformanceProbe {
         if (!listed.equals(classes) || !config.get("required").getAsBoolean()) throw new AssertionError("Unexpected " + name);
     }
 
-    private static JsonObject json(String resource) throws IOException {
+    static JsonObject json(String resource) throws IOException {
         try (InputStream stream = PfmPerformanceProbe.class.getClassLoader().getResourceAsStream(resource)) {
             if (stream == null) throw new FileNotFoundException(resource);
             return new JsonParser().parse(new String(stream.readAllBytes(), "UTF-8")).getAsJsonObject();
@@ -388,12 +388,12 @@ public final class PfmPerformanceProbe {
     // ---------------------------------------------------------------- class isolation helpers
 
     /** Merged Minefed handlers and MixinExtras operation bridges. */
-    private static boolean generated(MethodNode method) {
+    static boolean generated(MethodNode method) {
         return method.name.contains("minefed") || method.name.contains("mixinextras");
     }
 
     /** Keeps the tested members only, replaces constructors with a no-argument one and optionally rebases the class. */
-    private static byte[] isolate(byte[] input, Predicate<String> fields, Predicate<MethodNode> methods, String superName, List<String> interfaces) {
+    static byte[] isolate(byte[] input, Predicate<String> fields, Predicate<MethodNode> methods, String superName, List<String> interfaces) {
         ClassNode node = node(input);
         node.signature = null;
         if (superName != null) node.superName = superName;
@@ -435,19 +435,19 @@ public final class PfmPerformanceProbe {
         return new URLClassLoader(new URL[]{classes.toUri().toURL()}, PfmPerformanceProbe.class.getClassLoader());
     }
 
-    private static void set(Class<?> type, Object instance, String name, Object value) throws ReflectiveOperationException {
+    static void set(Class<?> type, Object instance, String name, Object value) throws ReflectiveOperationException {
         Field field = type.getDeclaredField(name);
         field.setAccessible(true);
         field.set(instance, value);
     }
 
-    private static Object get(Class<?> type, Object instance, String name) throws ReflectiveOperationException {
+    static Object get(Class<?> type, Object instance, String name) throws ReflectiveOperationException {
         Field field = type.getDeclaredField(name);
         field.setAccessible(true);
         return field.get(instance);
     }
 
-    private static ClassNode node(byte[] bytes) {
+    static ClassNode node(byte[] bytes) {
         ClassNode node = new ClassNode();
         new ClassReader(bytes).accept(node, 0);
         return node;

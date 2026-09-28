@@ -113,6 +113,21 @@ tasks.register('verifyPfmPerformance', JavaExec) {
     }
 }
 
+def trafficcraftJarPath = providers.gradleProperty('trafficcraftJar')
+tasks.register('verifyTrafficCraftPerformance', JavaExec) {
+    group = 'verification'
+    description = 'Applies the shipped TrafficCraft performance Mixins to the official TrafficCraft bytecode and compares original and patched code.'
+    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
+    mainClass = 'TrafficCraftPerformanceProbe'
+    doFirst {
+        if (!trafficcraftJarPath.isPresent()) {
+            throw new GradleException('Supply the official TrafficCraft 1.20.4-1.1.3 Fabric JAR using -PtrafficcraftJar=/path/to/trafficcraft-fabric-1.20.4-1.1.3.jar')
+        }
+        args = [file(trafficcraftJarPath.get()).absolutePath, layout.buildDirectory.dir('trafficcraft-performance-probe').get().asFile.absolutePath]
+    }
+}
+
 tasks.register('verifyPfmCompatibility', JavaExec) {
     group = 'verification'
     description = 'Reproduces PFM first-frame deferral and checks the shipped Mixin with the official queue bytecode.'
