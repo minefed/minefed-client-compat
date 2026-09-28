@@ -25,7 +25,11 @@
       "config": "minefed-pfm-render-perf.mixins.json",
       "environment": "client"
     },
-    "minefed-trafficcraft-perf.mixins.json"
+    "minefed-trafficcraft-perf.mixins.json",
+    {
+      "config": "minefed-trafficcraft-render-perf.mixins.json",
+      "environment": "client"
+    }
   ],
   "depends": {
     "fabricloader": ">=0.18.0",
