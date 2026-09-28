@@ -1,12 +1,13 @@
 # Minefed Client Compatibility
 
 A Fabric compatibility mod for Minecraft **1.20.4** and
-**PTS-Deco 4.0.0**, **Paladin's Furniture 1.5.0**, and **DragonLib 1.20.4-2.2.24**
-(included in TrafficCraft 1.1.3). It requires Java 17 or newer and Fabric Loader
-0.18.0 or newer. Install it alongside the official JARs on the client, and on
-the dedicated server for the PFM server-tick fixes below. It adds no network
-protocol, so either side works without the other. All compatibility fixes and
-render changes are client-only Mixin configurations and never load on a server.
+**PTS-Deco 4.0.0**, **Paladin's Furniture 1.5.0**, **TrafficCraft 1.20.4-1.1.3**,
+and its bundled **DragonLib 1.20.4-2.2.24**. It requires Java 17 or newer and
+Fabric Loader 0.18.0 or newer. Install it alongside the official JARs on the
+client, and on the dedicated server for the PFM and TrafficCraft server-side
+changes below. It adds no network protocol, so either side works without the
+other. All compatibility fixes and render changes are client-only Mixin
+configurations and never load on a server.
 
 PTS-Deco's workbench recipe reader consumes an unused Boolean after the result
 item, but its writer never sends that Boolean. This consumes the next recipe's
@@ -61,6 +62,44 @@ Table/desk shape keys, PFM's own item-renderer Mixins, and shower sounds are
 unchanged. They cannot be patched cleanly from here, or their result would
 differ. These Mixins use MixinExtras 0.5.0, which Fabric Loader 0.18.4 bundles.
 
+## TrafficCraft performance
+
+Version 1.3.0 wraps a few calls in the official TrafficCraft 1.20.4-1.1.3 and
+DragonLib 1.20.4-2.2.24 classes. It copies no TrafficCraft code: each Mixin
+calls TrafficCraft's own method, or keeps the result that method returned.
+
+- **Unchanged traffic-light updates (server).** DragonLib's `notifyUpdate`
+  calls `setChanged` and queues a block update plus the full block-entity NBT
+  for every tracking player. An unpowered traffic light calls
+  `setPowered(false)` on every neighbour change, and redstone-triggered lights
+  also call `stopSchedule`. Schedules may also call `enableOnlyColors` with the
+  colors already shown. When such a call leaves its fields as they were (the
+  same colors, compared object by object), the Mixin still calls `setChanged`.
+  Chunk saving and comparator updates therefore stay the same; only the
+  redundant packets are skipped. Every change of a field clients read is still
+  sent by the method that makes it. Only the internal schedule timer changes
+  without a packet, and clients never read it.
+- **Block shapes (both sides).** `TrafficLightBlock`, `TrafficSignPostBlock`,
+  and `RoadSaltBlock` build their outline shape from the block state alone, with
+  up to seven `Shapes.or` calls or a new box per query. The first shape
+  TrafficCraft returns for each of its own states is reused. Voxel shapes are
+  immutable, so later callers get an equal shape.
+- **Sign texture resets (server).** A new sign texture sends a reset packet to
+  every player in the dimension. Its client handler only resets a sign found at
+  that position. The packet now goes only to the players that vanilla sends
+  that chunk's block updates to. Other clients never have that sign loaded.
+- **Traffic-light bulbs (client).** Each bulb of each light searched the model
+  list with a stream every frame. The model that search returns is remembered
+  for its icon and color, and later bulbs draw that same model object through
+  TrafficCraft's own render method.
+
+Traffic-light colors still use the full block-entity update: a smaller custom
+packet would leave other client fields to other code paths. Sign background
+textures are still rebuilt, because they depend on the current resource pack.
+The server's sign texture files are still read on each request, because they
+can also be changed outside the game. Schedule change checks and bulb texture
+atlases are unchanged.
+
 ## Build
 
 Use a JDK 17 or newer:
@@ -69,13 +108,14 @@ Use a JDK 17 or newer:
 ./gradlew build
 ```
 
-The runtime JAR is `build/libs/minefed-client-compat-1.2.0.jar`.
+The runtime JAR is `build/libs/minefed-client-compat-1.3.0.jar`.
 The build uses Gradle 8.13 with Fabric's Mixin 0.8.7 fork and MixinExtras 0.5.0
 as compile-only dependencies. Production class and method selectors are
 explicit, so no Minecraft or PTS dependency, remapping task, or refmap is
-needed. Fabric Loader supplies Mixin and MixinExtras at runtime. The PFM
-performance Mixins compile against the small signature stubs in `src/stubs`,
-which use Fabric 1.20.4 intermediary names. These stubs are never packaged.
+needed. Fabric Loader supplies Mixin and MixinExtras at runtime. The PFM and
+TrafficCraft performance Mixins compile against the small signature stubs in
+`src/stubs`, which use Fabric 1.20.4 intermediary names. These stubs are never
+packaged.
 
 ## Validation
 
@@ -126,6 +166,25 @@ event logs match except for the skipped identical stove stores/updates and
 idle microwave lookups. Renderers stop only for empty contents. Packet volume
 and frame time still need an in-game measurement.
 
+The TrafficCraft probe works the same way with the official TrafficCraft JAR:
+
+```sh
+./gradlew verifyTrafficCraftPerformance -PtrafficcraftJar=/path/to/trafficcraft-fabric-1.20.4-1.1.3.jar
+```
+
+It checks the JAR and its bundled DragonLib by SHA-256. It then checks the
+TrafficCraft bytecode itself. The cached `getShape` methods read only their
+state and constant shapes. The bulb model list is filled once, and key equality
+compares only the icon and color. Every traffic-light method that changes
+client-read data sends its own update. The sign reset handler only resets a
+sign it finds. The Mixins are applied with Sponge Mixin and MixinExtras, and the
+real traffic-light, sign, shape, and bulb code runs on fixtures. Traffic-light
+event logs match except for packets of unchanged calls. Shapes match for all
+419 fixture states and are built once. Resets reach exactly the chunk's
+players. Bulb draws, lights, and failures match for every icon/color pair,
+with one list search per pair. A dedicated-server start with these Mixins,
+placing and updating a traffic light, loaded all server targets without errors.
+
 ## Upstream and license
 
 ### TrafficCraft / DragonLib Wikipedia requests
@@ -150,7 +209,7 @@ article language maps; it is optional when running offline texture tests.
 ### Notices
 
 This project contains independently authored MIT-licensed compatibility code.
-It does not include PTS-Deco, PFM or DragonLib code or assets and does not modify their distributed JARs.
+It does not include PTS-Deco, PFM, TrafficCraft or DragonLib code or assets and does not modify their distributed JARs.
 The Gradle wrapper scripts retain their upstream Apache-2.0 notices.
 
 The affected official artifact is
@@ -174,3 +233,16 @@ SHA-256 35c0dfdfa11f022b340f429f509f3bbd238134cf4224c8f11ab6e9c8f2e04fbf
 
 PFM's LGPL-3.0 source and PolyForm Shield visual assets retain their upstream
 terms. The independently authored compatibility code copies neither.
+
+The TrafficCraft fixture is [TrafficCraft 1.20.4-1.1.3 Fabric](https://modrinth.com/mod/Y1PXWvWn/version/rzrY1Buf),
+including DragonLib 1.20.4-2.2.24 as a nested JAR:
+
+```text
+trafficcraft-fabric-1.20.4-1.1.3.jar
+SHA-256 ddf1d434be7eee0ab7ff67ba4712cb213900bc10c43776cc52dddc40697a0a58
+META-INF/jars/dragonlib-fabric-1.20.4-2.2.24.jar
+SHA-256 c53a94bb2d1e37e0146c37f018153394697221b40cf60ae4f4edb897a00a530f
+```
+
+TrafficCraft is licensed GPL-3.0 and keeps its upstream terms. These Mixins
+only wrap its methods and copy none of its code.
