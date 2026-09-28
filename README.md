@@ -1,9 +1,12 @@
 # Minefed Client Compatibility
 
-A client-only Fabric compatibility mod for Minecraft **1.20.4** and
+A Fabric compatibility mod for Minecraft **1.20.4** and
 **PTS-Deco 4.0.0**, **Paladin's Furniture 1.5.0**, and **DragonLib 1.20.4-2.2.24**
 (included in TrafficCraft 1.1.3). It requires Java 17 or newer and Fabric Loader
-0.18.0 or newer. Install it alongside the official JARs on the client.
+0.18.0 or newer. Install it alongside the official JARs on the client, and on
+the dedicated server for the PFM server-tick fixes below. It adds no network
+protocol, so either side works without the other. All compatibility fixes and
+render changes are client-only Mixin configurations and never load on a server.
 
 PTS-Deco's workbench recipe reader consumes an unused Boolean after the result
 item, but its writer never sends that Boolean. This consumes the next recipe's
@@ -26,6 +29,38 @@ in one normal tick batch. Other textures and worker-thread requests retain their
 existing behavior. The version dependency and single-injection guard require
 review before upgrading PFM.
 
+## PFM performance
+
+Version 1.2.0 removes work in the official PFM 1.5.0 classes that has no
+observable effect. Each change keeps PFM's own code path for every other case.
+
+- **Stove and stovetop updates (server).** With `foodPopsOffStove` disabled
+  (the default), a finished item without a campfire recipe stays on the burner.
+  PFM then stores the same stack again and calls `sendBlockUpdated` on every
+  tick, which sends a block update and the full block-entity NBT to every
+  tracking player. The Mixin skips only that identical store and its update:
+  the recipe lookup still runs, and conversions, the pop-off branch, and
+  `setChanged` behave as before. Items, block state, and everything PFM renders
+  therefore reach clients exactly as before. The skipped packet otherwise
+  refreshes only timers such as oven fuel and cooking progress. Clients do not
+  display them from block-entity data, and PFM leaves them stale on clients
+  during ordinary cooking.
+- **Idle microwave (server).** A microwave holding an item looks up its smoking
+  recipe every tick but uses the result only while running. When it is idle, the
+  Mixin returns no recipe instead. The vanilla lookup only filters recipes with
+  `matches`, and the running flag cannot change between the lookup and its use.
+- **Empty plate, trash can, and microwave renderers (client).** When the
+  displayed stacks are empty, `renderStatic` draws nothing, so these renderers
+  now return before their balanced pose push/pop, light, registry, and recipe
+  work. They still set PFM's public `itemStack` field to the value PFM would
+  leave. A trash can with items reads its light once per frame instead of nine
+  times at the same position. A running microwave reuses its first recipe lookup
+  for the other two in the same condition.
+
+Table/desk shape keys, PFM's own item-renderer Mixins, and shower sounds are
+unchanged. They cannot be patched cleanly from here, or their result would
+differ. These Mixins use MixinExtras 0.5.0, which Fabric Loader 0.18.4 bundles.
+
 ## Build
 
 Use a JDK 17 or newer:
@@ -34,11 +69,13 @@ Use a JDK 17 or newer:
 ./gradlew build
 ```
 
-The runtime JAR is `build/libs/minefed-client-compat-1.1.0.jar`.
-The build uses Gradle 8.13 and Fabric's Mixin 0.8.7 fork as a compile-only
-dependency. Production class and method selectors are explicit, so no Minecraft
-or PTS dependency, remapping task, or refmap is needed. Fabric Loader supplies
-Mixin at runtime.
+The runtime JAR is `build/libs/minefed-client-compat-1.2.0.jar`.
+The build uses Gradle 8.13 with Fabric's Mixin 0.8.7 fork and MixinExtras 0.5.0
+as compile-only dependencies. Production class and method selectors are
+explicit, so no Minecraft or PTS dependency, remapping task, or refmap is
+needed. Fabric Loader supplies Mixin and MixinExtras at runtime. The PFM
+performance Mixins compile against the small signature stubs in `src/stubs`,
+which use Fabric 1.20.4 intermediary names. These stubs are never packaged.
 
 ## Validation
 
@@ -77,6 +114,17 @@ and GL binding restoration on both success and upload failure. This complements
 the Minecraft 1.20.4 / Loader 0.18.4 cold creative-inventory sweep: all 18,970
 stacks were drawn before model prewarming; the eleven first-frame placeholders
 disappeared. Pixel matches from actual purple items were inspected separately.
+
+`verifyPfmCompatibility` first runs `verifyPfmPerformance` with the same JAR.
+That probe checks the shipped configurations: the performance config loads on
+both sides, and every other config stays client-only. Every Minecraft or PFM
+member the new Mixins call must also appear, with the same owner and
+descriptor, in the official PFM bytecode. The probe applies the Mixins to the
+official stove, stovetop, microwave, and renderer classes with Sponge Mixin and
+MixinExtras. It then runs original and transformed tick code on fixtures. The
+event logs match except for the skipped identical stove stores/updates and
+idle microwave lookups. Renderers stop only for empty contents. Packet volume
+and frame time still need an in-game measurement.
 
 ## Upstream and license
 
