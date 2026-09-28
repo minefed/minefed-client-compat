@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.transformer.*;
 import org.spongepowered.asm.service.*;
 
 public final class MixinCompatProbe {
-    public static final String TARGET="com.nik123123555.ptsdeco.crafting.WorkbenchContructingRecipe$Serializer";
+    public static String TARGET="com.nik123123555.ptsdeco.crafting.WorkbenchContructingRecipe$Serializer";
     public static void main(String[] args) throws Exception {
         if(args.length!=4)throw new IllegalArgumentException("Usage: MixinCompatProbe <original probe classes> <output directory> <mixin config> <PTS JAR>");
         Path original=Path.of(args[0]), output=Path.of(args[1]);
@@ -66,6 +66,7 @@ public final class MixinCompatProbe {
 
     public static final class ProbeService extends MixinServiceAbstract implements IClassProvider,IClassBytecodeProvider {
         static byte[] originalTarget;
+        static Path fixtureClasses;
         public String getName(){return "Minefed isolated Mixin probe";}
         public boolean isValid(){return true;}
         public MixinEnvironment.Phase getInitialPhase(){return MixinEnvironment.Phase.DEFAULT;}
@@ -85,7 +86,11 @@ public final class MixinCompatProbe {
         public ClassNode getClassNode(String name,boolean transform)throws ClassNotFoundException,IOException{return getClassNode(name,transform,0);}
         public ClassNode getClassNode(String name,boolean transform,int flags)throws ClassNotFoundException,IOException{
             if(name.replace('/','.').equals(TARGET)){ClassNode node=new ClassNode();new ClassReader(originalTarget).accept(node,flags);return node;}
-            try(InputStream stream=getResourceAsStream(name.replace('.','/')+".class")){
+            String resource=name.replace('.','/')+".class";
+            InputStream available=getResourceAsStream(resource);
+            if(available==null && fixtureClasses!=null && Files.isRegularFile(fixtureClasses.resolve(resource)))
+                available=Files.newInputStream(fixtureClasses.resolve(resource));
+            try(InputStream stream=available){
                 if(stream==null)throw new ClassNotFoundException(name);
                 ClassNode node=new ClassNode();new ClassReader(stream).accept(node,flags);return node;
             }

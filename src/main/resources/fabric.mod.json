@@ -3,7 +3,7 @@
   "id": "minefed-client-compat",
   "version": "${version}",
   "name": "Minefed Client Compatibility",
-  "description": "Fixes the extra recipe-sync byte read in PTS-Deco 4.0.0 on Minecraft 1.20.4.",
+  "description": "Fixes PTS-Deco 4.0.0 recipe synchronization and PFM 1.5.0 first-frame herringbone textures on Minecraft 1.20.4.",
   "authors": ["Minefed"],
   "license": "MIT",
   "environment": "client",
@@ -11,12 +11,17 @@
     {
       "config": "minefed-client-compat.mixins.json",
       "environment": "client"
+    },
+    {
+      "config": "minefed-pfm-compat.mixins.json",
+      "environment": "client"
     }
   ],
   "depends": {
     "fabricloader": ">=0.18.0",
     "minecraft": "=1.20.4",
     "java": ">=17",
-    "ptsdeco": "=4.0.0"
+    "ptsdeco": "=4.0.0",
+    "pfm": "=1.5.0"
   }
 }
