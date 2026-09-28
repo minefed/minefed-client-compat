@@ -88,6 +88,9 @@ public final class PfmPerformanceProbe {
             + "Packet volume and frame time must be measured in game.");
     }
 
+    /** Configurations loaded on dedicated servers; TrafficCraftPerformanceProbe checks the TrafficCraft one. */
+    private static final Set<String> SERVER_CONFIGS = Set.of("minefed-pfm-perf.mixins.json", "minefed-trafficcraft-perf.mixins.json");
+
     /** fabric.mod.json must load the common config on both sides and keep render Mixins client-only. */
     private static void checkConfigurations() throws IOException {
         JsonObject mod = json("fabric.mod.json");
@@ -98,7 +101,7 @@ public final class PfmPerformanceProbe {
             else environments.put(entry.getAsJsonObject().get("config").getAsString(), entry.getAsJsonObject().get("environment").getAsString());
         }
         for (var entry : environments.entrySet())
-            if (!entry.getKey().equals("minefed-pfm-perf.mixins.json") && !entry.getValue().equals("client"))
+            if (!SERVER_CONFIGS.contains(entry.getKey()) && !entry.getValue().equals("client"))
                 throw new AssertionError(entry.getKey() + " must stay client-only");
         if (!"*".equals(environments.get("minefed-pfm-perf.mixins.json"))) throw new AssertionError("Server Mixin config is not loaded on servers");
         expectConfig("minefed-pfm-perf.mixins.json", "mixins", COMMON_MIXINS);
