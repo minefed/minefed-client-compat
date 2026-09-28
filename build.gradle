@@ -11,6 +11,9 @@ repositories {
 }
 
 sourceSets {
+    // Compile-only signatures of pinned production (intermediary and PFM 1.5.0) classes.
+    // They are never packaged; probes check them against the official PFM bytecode.
+    stubs
     probe
 }
 
@@ -19,6 +22,9 @@ dependencies {
     compileOnly('net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7') {
         transitive = false
     }
+    // Fabric Loader 0.18.4 bundles MixinExtras 0.5.0; do not bundle another copy.
+    compileOnly 'io.github.llamalad7:mixinextras-common:0.5.0'
+    compileOnly sourceSets.stubs.output
     // Test-only dependencies: never included in the runtime mod JAR.
     probeImplementation 'net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7'
 }
