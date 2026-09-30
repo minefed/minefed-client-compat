@@ -25,9 +25,13 @@ dependencies {
     // Fabric Loader 0.18.4 bundles MixinExtras 0.5.0; do not bundle another copy.
     compileOnly 'io.github.llamalad7:mixinextras-common:0.5.0'
     compileOnly sourceSets.stubs.output
+    // Minecraft supplies SLF4J at runtime
+    compileOnly 'org.slf4j:slf4j-api:2.0.9'
     // Test-only dependencies: never included in the runtime mod JAR.
     probeImplementation 'net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7'
     probeImplementation 'io.github.llamalad7:mixinextras-common:0.5.0'
+    // AtlasSpriteProbe calls the pure sprite rules directly; the JAR supplies them at runtime
+    probeCompileOnly sourceSets.main.output
 }
 
 java {
@@ -139,5 +143,23 @@ tasks.register('verifyPfmCompatibility', JavaExec) {
             throw new GradleException('Supply the official PFM 1.5.0 Fabric 1.20.4 JAR using -PpfmJar=/path/to/paladin-furniture-mod-1.5.0-fabric-mc1.20.4.jar')
         }
         args = [file(pfmJarPath.get()).absolutePath, layout.buildDirectory.dir('pfm-probe').get().asFile.absolutePath]
+    }
+}
+
+def atlasModsDir = providers.gradleProperty('atlasModsDir')
+tasks.register('verifyAtlasSprites', JavaExec) {
+    group = 'verification'
+    description = 'Checks the block atlas sprite rules on synthetic images and, with -PatlasModsDir, on every block atlas texture of the given mod JARs.'
+    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
+    mainClass = 'AtlasSpriteProbe'
+    maxHeapSize = '2g'
+    doFirst {
+        if (providers.gradleProperty('atlasDump').isPresent()) {
+            systemProperty 'atlas.dump', file(providers.gradleProperty('atlasDump').get()).absolutePath
+        }
+        if (atlasModsDir.isPresent()) {
+            args = [file(atlasModsDir.get()).absolutePath]
+        }
     }
 }

@@ -3,7 +3,7 @@
   "id": "minefed-client-compat",
   "version": "${version}",
   "name": "Minefed Client Compatibility",
-  "description": "Fixes PTS-Deco recipes, PFM first-frame textures and DragonLib Wikidata requests on Minecraft 1.20.4 clients, and removes redundant PFM stove updates, idle microwave lookups, empty furniture rendering work, unchanged TrafficCraft traffic-light updates and repeated TrafficCraft shape and bulb-model lookups.",
+  "description": "Fixes PTS-Deco recipes, PFM first-frame textures and DragonLib Wikidata requests on Minecraft 1.20.4 clients, and removes redundant PFM stove updates, idle microwave lookups, empty furniture rendering work, unchanged TrafficCraft traffic-light updates and repeated TrafficCraft shape and bulb-model lookups, keeps block atlas sprites small and mipmap-aligned.",
   "authors": ["Minefed"],
   "license": "MIT",
   "environment": "*",
@@ -28,6 +28,10 @@
     "minefed-trafficcraft-perf.mixins.json",
     {
       "config": "minefed-trafficcraft-render-perf.mixins.json",
+      "environment": "client"
+    },
+    {
+      "config": "minefed-atlas-perf.mixins.json",
       "environment": "client"
     }
   ],
