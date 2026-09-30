@@ -100,6 +100,45 @@ The server's sign texture files are still read on each request, because they
 can also be changed outside the game. Schedule change checks and bulb texture
 atlases are unchanged.
 
+## Block atlas memory (client)
+
+Version 1.4.0 stores block atlas sprites more compactly just before the atlas is
+stitched (`SpriteLoader.stitch`, block atlas only). The rules live in
+`AtlasSpriteOptimizer`; every other atlas and every other sprite is unchanged.
+
+- **Exact enlargements.** A static sprite in which every f×f block has one colour
+  (for example a 1024×1024 single-colour guardrail part) is stored at 1/f size.
+  Every texel samples the same colour as before.
+- **Size cap.** Static sprites larger than 512 pixels are halved with a
+  premultiplied box filter while both sides stay multiples of 16. This changes
+  pixels (City Craft's 2048×2048 guardrails compare at about 50 dB PSNR, its
+  trash bin at about 35 dB). The `msd` namespace, whose textures carry text, is
+  excluded.
+- **Mipmap alignment.** Vanilla lowers the mipmap level of the whole atlas to the
+  largest power of two dividing every sprite side, so a single 21×21 icon turned
+  mipmaps off for every block. Sprites below the alignment are enlarged with
+  nearest neighbour (at most 4×, at most 512 pixels; the full-size texels are
+  unchanged) or otherwise resampled to the nearest multiple of 16. With the
+  default mipmap level, distant blocks are filtered as vanilla intends again.
+
+With the Minefed 1.20.4 pack the block atlas sprites shrink from about 61 to
+27 megapixels, and the atlas from 16384×8192 without mipmaps (512 MiB of VRAM)
+to 8192×8192 with four mipmap levels (about 341 MiB); the sprite images kept in
+native memory shrink accordingly. Settings are read from
+`config/minefed-atlas.properties` (`exactDownscale`, `mipmapAlignment`,
+`maxStaticSize`, `sizeCapExcludedNamespaces`); system properties prefixed with
+`minefed.atlas.` take precedence. `maxStaticSize=0` disables the size cap.
+
+## MCEF start-up (client)
+
+MCEF 2.1.6 starts Chromium, including its GPU and utility processes, when the
+first screen opens. The optional `minefed-mcef-lazy` Mixin defers
+`MCEF.initialize()` until something first uses the MCEF API (every such entry
+point calls `assertInitialized()`). Players who never see a web display do not
+start Chromium; the first web display appears once Chromium has started, about
+1–2 seconds later. The native download at game start is unchanged. The
+configuration is not required, so the mod still loads without MCEF.
+
 ## Build
 
 Use a JDK 17 or newer:
@@ -108,7 +147,7 @@ Use a JDK 17 or newer:
 ./gradlew build
 ```
 
-The runtime JAR is `build/libs/minefed-client-compat-1.3.0.jar`.
+The runtime JAR is `build/libs/minefed-client-compat-1.4.0.jar`.
 The build uses Gradle 8.13 with Fabric's Mixin 0.8.7 fork and MixinExtras 0.5.0
 as compile-only dependencies. Production class and method selectors are
 explicit, so no Minecraft or PTS dependency, remapping task, or refmap is
@@ -118,6 +157,12 @@ TrafficCraft performance Mixins compile against the small signature stubs in
 packaged.
 
 ## Validation
+
+`verifyAtlasSprites` checks the block atlas rules on synthetic images without any
+fixture. With `-PatlasModsDir=<directory of mod JARs>` it also runs the rules on
+every block atlas texture of those JARs, checks that every result is aligned to
+16 pixels and keeps its animation frames, and compares every texel of the
+results marked exact with the original texel.
 
 The reusable probes in `src/probe` require a local copy of the official artifact
 identified below. They check its SHA-256 and never download or redistribute it.
