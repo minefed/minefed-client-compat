@@ -162,6 +162,38 @@ logs transform time, hit count and retained pixel bytes separately from the
 rest of Minecraft's reload. PNG decoding, atlas stitching/upload and model
 loading still run normally.
 
+## Model loading (client)
+
+Version 1.6.0 reduces repeated work in Minecraft 1.20.4 model loading without
+changing model JSON, texture pixels, quad layout or resource pack selection.
+
+- Variant selection uses vanilla's already parsed property/value conditions to
+  index the actual state list. Candidate states retain the original encounter
+  order and still pass through vanilla's predicate and registration/overlap
+  handling. Empty conditions, small lists and unsupported states or values use
+  the original scan. Each loading thread retains only its most recent index,
+  capped at 32,768 states and 262,144 property memberships; it retains no models,
+  sprites or resource packs.
+- Standard JSON element rotations reuse the same quaternion/matrix calculation.
+  The origin is read on every call, cached mutable objects never escape, and the
+  original vertex transform still runs with fresh copies. Null or nonstandard
+  rotations take the original method, as do non-finite or extreme custom
+  coordinates. The finite cache includes signed zero and both rescale settings.
+  The probe compares finite output float bits exactly; NaN cases must take the
+  original method and retain NaN results, whose payload can vary with JIT compilation.
+- Scena 1.0.141 registers several resource providers that parse the same ordinary
+  model. A bounded cache remembers only that an exact, fully parsed JSON object
+  has no top-level `loader`. Each call still reads the current resource contents;
+  changed files, custom loaders, malformed inputs and unsupported Gson policies
+  use the original parser. Cached negative hits return a fresh empty object to
+  Scena's existing null-result branch. The cache holds at most 256 entries and
+  an estimated 2 MiB of retained text/entry payload, not a limit on transient
+  parser allocations. It never retains parsed models or atlas sprites.
+
+All three changes are client-only. No baked model is retained across resource
+reloads, so changed pack parents, models and atlas UVs follow normal rebuilding.
+Minecraft and optional Scena updates require rechecking the pinned bytecode.
+
 ## MCEF start-up (client)
 
 MCEF 2.1.6 starts Chromium, including its GPU and utility processes, when the
@@ -180,7 +212,7 @@ Use a JDK 17 or newer:
 ./gradlew build
 ```
 
-The runtime JAR is `build/libs/minefed-client-compat-1.5.0.jar`.
+The runtime JAR is `build/libs/minefed-client-compat-1.6.0.jar`.
 The build uses Gradle 8.13 with Fabric's Mixin 0.8.7 fork and MixinExtras 0.5.0
 as compile-only dependencies. Production class and method selectors are
 explicit, so no Minecraft or PTS dependency, remapping task, or refmap is
@@ -190,6 +222,27 @@ TrafficCraft performance Mixins compile against the small signature stubs in
 packaged.
 
 ## Validation
+
+`verifyModelVariantIndex` compares indexed selection with ordered predicate
+scans, including parsed aliases, duplicate-property resolution, partial
+conditions, Integer values above 127, exceptions and bounded/custom fallbacks.
+`verifyModelVariantMixin` applies both local captures to the actual 1.20.4
+intermediary ModelLoader and checks the original parsing and overlap methods.
+`verifyModelRotation` executes original and transformed rotation code and
+compares raw float bits, mutable origins, transform-hook mutations, nonstandard
+fallbacks and concurrent calls. It pins both the game classes and JOML 1.10.5.
+`verifyScenaModelCache` applies the redirect to official Scena 1.0.141 bytecode
+and compares the actual resource-load method, including three separate Gson
+providers, changed content, custom policies, I/O errors and cache bounds.
+
+The bytecode probes need a Minecraft 1.20.4 intermediary JAR and the official
+Scena 1.0.141 JAR. The parent pack prepares pinned fixtures and passes their paths
+explicitly, independently of source workers' Gradle caches. Standalone verification
+can supply `-PminecraftJar=<path>` and `-PscenaJar=<path>`; the defaults locate
+existing Loom and Scena artifacts in the current Gradle cache. Test fixtures, Gson,
+Guava and JOML are never bundled in this mod. Optional
+`-PscenaModelCorpusDir=<mods directory>` runs a separate parser-only benchmark;
+it does not measure whole-client startup or reload time.
 
 `verifyAtlasSprites` checks the block atlas rules on synthetic images without any
 fixture. With `-PatlasModsDir=<directory of mod JARs>` it also runs the rules on

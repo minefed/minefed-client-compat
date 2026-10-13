@@ -3,10 +3,8 @@
   "id": "minefed-client-compat",
   "version": "${version}",
   "name": "Minefed Client Compatibility",
-  "description": "Fixes PTS-Deco recipes, PFM first-frame textures and DragonLib Wikidata requests on Minecraft 1.20.4 clients, and removes redundant PFM stove updates, idle microwave lookups, empty furniture rendering work, unchanged TrafficCraft traffic-light updates and repeated TrafficCraft shape and bulb-model lookups, keeps block atlas sprites small and mipmap-aligned, and starts MCEF only when first used.",
-  "authors": [
-    "Minefed"
-  ],
+  "description": "Fixes PTS-Deco recipes, PFM first-frame textures and DragonLib Wikidata requests on Minecraft 1.20.4 clients; removes redundant PFM/TrafficCraft work; reuses atlas transforms and model loading calculations; avoids repeated ordinary model parsing in Scena; and starts MCEF only when first used.",
+  "authors": ["Minefed"],
   "license": "MIT",
   "environment": "*",
   "mixins": [
@@ -41,6 +39,10 @@
       "environment": "client"
     },
     {
+      "config": "minefed-model-rotation.mixins.json",
+      "environment": "client"
+    },
+    {
       "config": "minefed-model-variant-perf.mixins.json",
       "environment": "client"
     },
@@ -49,14 +51,13 @@
       "environment": "client"
     },
     {
-      "config": "minefed-model-rotation.mixins.json",
-      "environment": "client"
-    },
-    {
       "config": "minefed-mcef-lazy.mixins.json",
       "environment": "client"
     }
   ],
+  "breaks": {
+    "scena": ["<1.0.141", ">1.0.141"]
+  },
   "depends": {
     "fabricloader": ">=0.18.0",
     "minecraft": "=1.20.4",
@@ -65,11 +66,5 @@
     "pfm": "=1.5.0",
     "dragonlib": "=1.20.4-2.2.24",
     "trafficcraft": "=1.20.4-1.1.3"
-  },
-  "breaks": {
-    "scena": [
-      "<1.0.141",
-      ">1.0.141"
-    ]
   }
 }
