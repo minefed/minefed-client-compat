@@ -49,6 +49,10 @@
       "environment": "client"
     },
     {
+      "config": "minefed-model-rotation.mixins.json",
+      "environment": "client"
+    },
+    {
       "config": "minefed-mcef-lazy.mixins.json",
       "environment": "client"
     }

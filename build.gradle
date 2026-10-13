@@ -27,6 +27,8 @@ dependencies {
     compileOnly sourceSets.stubs.output
     // Minecraft supplies SLF4J at runtime
     compileOnly 'org.slf4j:slf4j-api:2.0.9'
+    compileOnly 'org.joml:joml:1.10.5'
+    stubsCompileOnly 'org.joml:joml:1.10.5'
     compileOnly 'com.google.code.gson:gson:2.10.1'
     compileOnly 'com.google.guava:guava:32.1.2-jre'
     stubsCompileOnly 'com.google.guava:guava:32.1.2-jre'
@@ -35,6 +37,7 @@ dependencies {
     probeImplementation 'io.github.llamalad7:mixinextras-common:0.5.0'
     // The official PFM cache calls JsonArray.add(String), unavailable in Mixin's older Gson.
     probeImplementation 'com.google.code.gson:gson:2.10.1'
+    probeImplementation 'org.joml:joml:1.10.5'
     probeImplementation 'com.google.guava:guava:32.1.2-jre'
     // AtlasSpriteProbe calls the pure sprite rules directly; the JAR supplies them at runtime
     probeCompileOnly sourceSets.main.output
@@ -209,6 +212,19 @@ tasks.register('verifyModelVariantMixin', JavaExec) {
     doFirst {
         if (!minecraftJarPath.isPresent()) throw new GradleException('Supply the pinned Minecraft 1.20.4 intermediary JAR using -PminecraftJar=/path/to/minecraft-merged-intermediary.jar')
         args = [file(minecraftJarPath.get()).absolutePath, layout.buildDirectory.dir('model-variant-probe').get().asFile.absolutePath]
+    }
+}
+
+tasks.register('verifyModelRotation', JavaExec) {
+    group = 'verification'
+    description = 'Compares pinned vanilla and transformed model rotation bytecode bit for bit.'
+    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
+    mainClass = 'ModelRotationProbe'
+    maxHeapSize = '512m'
+    doFirst {
+        if (!minecraftJarPath.isPresent()) throw new GradleException('Supply the pinned Minecraft 1.20.4 intermediary JAR using -PminecraftJar=/path/to/minecraft-merged-intermediary.jar')
+        args = [file(minecraftJarPath.get()).absolutePath, layout.buildDirectory.dir('model-rotation-probe').get().asFile.absolutePath]
     }
 }
 
