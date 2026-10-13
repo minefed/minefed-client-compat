@@ -28,6 +28,12 @@ public final class ModelRotationProbe {
         TARGET, "529dc9556b74681e90f3e1313a3e1904548c43d38396cd1e5aae1de776dc9bd4",
         TARGET + "$1", "03aab148dc1ccae63524f717f9fb4ccb1f0982a108792185991ef4632ad6e82c",
         ROTATION, "4e5886050b219a2c1bc7e5c92b0507bbeb7bc7d31750434e5d6ee044fa66c9cd");
+    // ModelFixtureEquivalenceProbe compares all instructions/members/handlers
+    // against the original Loom pins before this second fixture is accepted.
+    private static final Map<String, String> CLIENT_HASHES = Map.of(
+        TARGET, "c82e37effad2be5045b4a07e9c588ceec7c0711e5306aba42cabb26fb944933a",
+        TARGET + "$1", "35dd964af85d677f9b3e50e5ee123bbeb2de589c6563cb42960049078e503022",
+        ROTATION, "654f2d7169112652095145ae752d84398cc2e5a9b41945ff9f9976e58b7b2cdf");
     private static final Map<String, String> JOML_HASHES = Map.of(
         "Vector3f", "48c96ce5de5540832a230d33d8e8e1cd6c09e0678ac83a3d7a93d0d685b7953d",
         "Vector4f", "4989ea14dc925bcdfd560afad65fe8a3efa7162d119977df565ca224f539fb4b",
@@ -49,13 +55,17 @@ public final class ModelRotationProbe {
         for (var entry : JOML_HASHES.entrySet()) if (!entry.getValue().equals(sha256(resource("org/joml/" + entry.getKey() + ".class"))))
             throw new AssertionError("Expected Minecraft's JOML 1.10.5 bytecode: " + entry.getKey());
         Map<String, byte[]> original = new HashMap<>();
+        Map<String, String> actualHashes = new HashMap<>();
         try (ZipFile jar = new ZipFile(args[0])) {
             for (var entry : HASHES.entrySet()) {
                 byte[] bytes = jar.getInputStream(jar.getEntry(entry.getKey() + ".class")).readAllBytes();
-                if (!sha256(bytes).equals(entry.getValue())) throw new AssertionError("Unexpected Minecraft bytecode: " + entry.getKey());
+                actualHashes.put(entry.getKey(), sha256(bytes));
                 original.put(entry.getKey(), bytes);
             }
         }
+        String minecraftFixture = identifyFixture(actualHashes);
+        checkFixtureSelection();
+        System.out.println("Pinned Minecraft fixture: " + minecraftFixture);
         var config = PfmPerformanceProbe.json(CONFIG);
         if (!config.get("required").getAsBoolean() || config.getAsJsonArray("client").size() != 1
             || !"ModelRotationMixin".equals(config.getAsJsonArray("client").get(0).getAsString()))
@@ -138,7 +148,7 @@ public final class ModelRotationProbe {
             cases += 6000;
         }
         String summary = "{\"rawFloatBitCases\":" + cases + ",\"standardRotations\":36,\"parallelWorkers\":6,"
-            + "\"pinnedVanillaBytecode\":true,\"pinnedJoml105\":true,\"realMixinTransformation\":true,\"mutableOrigin\":true,"
+            + "\"pinnedVanillaBytecode\":true,\"minecraftFixture\":\"" + minecraftFixture + "\",\"pinnedJoml105\":true,\"realMixinTransformation\":true,\"mutableOrigin\":true,"
             + "\"mutatingTransformHook\":true,\"nonstandardFallback\":true,\"originalFallbackBytecodeUnchanged\":true,"
             + "\"finiteResultsRawBitExact\":true,\"observedOriginalFallbackNaNPayloadVariations\":" + NAN_PAYLOAD_VARIATIONS.get()
             + ",\"strictNaNPayloadComparison\":" + REQUIRE_NAN_PAYLOAD + "}";
@@ -146,6 +156,19 @@ public final class ModelRotationProbe {
         System.out.println("PASS: " + cases + " original/transformed comparisons, finite results raw-bit exact, 36 standard rotations, proven original nonstandard/nonfinite fallback, mutable origins, transform-hook mutations and 6 concurrent workers.");
         System.out.println("NaN diagnostics: " + NAN_PAYLOAD_VARIATIONS.get() + " payload/sign differences on proven original-bytecode fallback calls; strict payload comparison=" + REQUIRE_NAN_PAYLOAD + ".");
         System.out.println("Scope: original Minecraft 1.20.4 rotation/transform methods and real Sponge Mixin; Axis is a signature fixture. No whole-client speed claim.");
+    }
+
+    private static String identifyFixture(Map<String, String> hashes) {
+        if (HASHES.equals(hashes)) return "loom-merged-1.20.4";
+        if (CLIENT_HASHES.equals(hashes)) return "official-client-1.20.4-tinyremapper-0.10.3";
+        throw new AssertionError("Unexpected or mixed Minecraft fixture bytecode: " + hashes);
+    }
+    private static void checkFixtureSelection() {
+        if (identifyFixture(HASHES).equals(identifyFixture(CLIENT_HASHES))) throw new AssertionError("Fixture identity lost");
+        Map<String, String> mixed = new HashMap<>(HASHES);
+        mixed.put(TARGET, CLIENT_HASHES.get(TARGET));
+        try { identifyFixture(mixed); } catch (AssertionError expected) { return; }
+        throw new AssertionError("Mixed fixture hashes must be rejected");
     }
 
     private static float[] vector(Random random, int trial) {

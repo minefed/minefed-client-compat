@@ -244,6 +244,20 @@ Guava and JOML are never bundled in this mod. Optional
 `-PscenaModelCorpusDir=<mods directory>` runs a separate parser-only benchmark;
 it does not measure whole-client startup or reload time.
 
+The rotation probe accepts two complete SHA-256 sets: the reviewed Loom merged
+fixture and the parent's official-client/TinyRemapper 0.10.3 fixture. Mixed sets
+are rejected; console and JSON output identify the fixture. To repeat their audit,
+run `verifyModelFixtureEquivalence -PreferenceMinecraftJar=<Loom JAR>
+-PminecraftJar=<prepared client JAR>`. It compares all 4 target classes, 61 methods,
+53 fields, 2,376 instructions and 18 exception handlers, with six mutation controls.
+It normalizes source/line/local-variable debug data, parameter names (preserving
+counts and flags), verifier frames, the exact Fabric CLIENT marker and five empty
+`javax.annotation.Nullable`/JetBrains descriptor aliases. Raw and normalized dumps
+remain in `build/model-fixture-equivalence-probe`. This proves executable/member
+equivalence for these pinned fixtures, not identical reflection metadata.
+Loom 1.6.12's `TinyRemapperHelper` explicitly rewrites JSR annotations, invalid
+local names and source filenames; the standalone remapper preserves that metadata.
+
 `verifyAtlasSprites` checks the block atlas rules on synthetic images without any
 fixture. With `-PatlasModsDir=<directory of mod JARs>` it also runs the rules on
 every block atlas texture of those JARs, checks that every result is aligned to

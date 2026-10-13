@@ -231,6 +231,22 @@ tasks.register('verifyModelRotation', JavaExec) {
     }
 }
 
+tasks.register('verifyModelFixtureEquivalence', JavaExec) {
+    group = 'verification'
+    description = 'Audits pinned Loom and independently remapped client classes, including every instruction, member and exception range.'
+    dependsOn tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath
+    mainClass = 'ModelFixtureEquivalenceProbe'
+    maxHeapSize = '128m'
+    doFirst {
+        if (!providers.gradleProperty('referenceMinecraftJar').isPresent())
+            throw new GradleException('Supply the reviewed Loom fixture using -PreferenceMinecraftJar=/path/to/minecraft-merged-intermediary.jar')
+        args = [file(providers.gradleProperty('referenceMinecraftJar').get()).absolutePath,
+                file(minecraftJarPath.get()).absolutePath,
+                layout.buildDirectory.dir('model-fixture-equivalence-probe').get().asFile.absolutePath]
+    }
+}
+
 tasks.register('verifyAtlasSprites', JavaExec) {
     group = 'verification'
     description = 'Checks the block atlas sprite rules on synthetic images and, with -PatlasModsDir, on every block atlas texture of the given mod JARs.'
