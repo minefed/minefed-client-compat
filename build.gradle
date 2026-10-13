@@ -27,11 +27,14 @@ dependencies {
     compileOnly sourceSets.stubs.output
     // Minecraft supplies SLF4J at runtime
     compileOnly 'org.slf4j:slf4j-api:2.0.9'
+    compileOnly 'com.google.guava:guava:32.1.2-jre'
+    stubsCompileOnly 'com.google.guava:guava:32.1.2-jre'
     // Test-only dependencies: never included in the runtime mod JAR.
     probeImplementation 'net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7'
     probeImplementation 'io.github.llamalad7:mixinextras-common:0.5.0'
     // The official PFM cache calls JsonArray.add(String), unavailable in Mixin's older Gson.
     probeImplementation 'com.google.code.gson:gson:2.10.1'
+    probeImplementation 'com.google.guava:guava:32.1.2-jre'
     // AtlasSpriteProbe calls the pure sprite rules directly; the JAR supplies them at runtime
     probeCompileOnly sourceSets.main.output
 }
@@ -162,6 +165,30 @@ tasks.register('verifyPfmCompatibility', JavaExec) {
 }
 
 def atlasModsDir = providers.gradleProperty('atlasModsDir')
+def minecraftJarPath = providers.gradleProperty('minecraftJar').orElse(
+    new File(gradle.gradleUserHomeDir, 'caches/fabric-loom/1.20.4/minecraft-merged-intermediary.jar').absolutePath)
+tasks.register('verifyModelVariantIndex', JavaExec) {
+    group = 'verification'
+    description = 'Checks indexed variant selection against the original ordered predicate scan.'
+    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
+    mainClass = 'ModelVariantIndexProbe'
+    maxHeapSize = '512m'
+}
+
+tasks.register('verifyModelVariantMixin', JavaExec) {
+    group = 'verification'
+    description = 'Checks variant predicate capture and filter injection in pinned Minecraft bytecode.'
+    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
+    mainClass = 'ModelVariantMixinProbe'
+    maxHeapSize = '512m'
+    doFirst {
+        if (!minecraftJarPath.isPresent()) throw new GradleException('Supply the pinned Minecraft 1.20.4 intermediary JAR using -PminecraftJar=/path/to/minecraft-merged-intermediary.jar')
+        args = [file(minecraftJarPath.get()).absolutePath, layout.buildDirectory.dir('model-variant-probe').get().asFile.absolutePath]
+    }
+}
+
 tasks.register('verifyAtlasSprites', JavaExec) {
     group = 'verification'
     description = 'Checks the block atlas sprite rules on synthetic images and, with -PatlasModsDir, on every block atlas texture of the given mod JARs.'
