@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import team.minefed.mods.clientcompat.atlas.AtlasSpriteOptimizer;
+import team.minefed.mods.clientcompat.atlas.AtlasSpriteCache;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,8 @@ import java.util.List;
 @Mixin(targets = "net.minecraft.class_7766", remap = false)
 public abstract class BlockAtlasSpriteMixin {
     private static final Logger MINEFED_LOGGER = LoggerFactory.getLogger("minefed-client-compat");
+    // Keep only Java pixel results, never NativeImage, SpriteContents or metadata from a retired pack.
+    private static final AtlasSpriteCache MINEFED_CACHE = new AtlasSpriteCache(32L * 1024 * 1024, 512);
 
     @Shadow @Final private class_2960 field_40549;
 
@@ -36,6 +39,8 @@ public abstract class BlockAtlasSpriteMixin {
             return sprites;
         }
         final AtlasSpriteOptimizer.Settings settings = AtlasSpriteOptimizer.Settings.load();
+        final long started = System.nanoTime();
+        final long previousHits = MINEFED_CACHE.hits();
         final List<class_7764> result = new ArrayList<>(sprites.size());
         long pixelsBefore = 0;
         long pixelsAfter = 0;
@@ -45,7 +50,7 @@ public abstract class BlockAtlasSpriteMixin {
             AtlasSpriteOptimizer.Result optimized = null;
             if (image != null && image.method_4318() == class_1011.class_1012.field_4997) {
                 try {
-                    optimized = AtlasSpriteOptimizer.optimize(sprite.method_45816().method_12836(), image.method_4307(), image.method_4323(),
+                    optimized = MINEFED_CACHE.optimize(sprite.method_45816().toString(), sprite.method_45816().method_12836(), image.method_4307(), image.method_4323(),
                         sprite.method_45807(), sprite.method_45815(), image::method_4315, mipLevel, settings);
                 } catch (RuntimeException exception) {
                     MINEFED_LOGGER.warn("Keeping block atlas sprite {} unchanged", sprite.method_45816(), exception);
@@ -71,6 +76,8 @@ public abstract class BlockAtlasSpriteMixin {
         if (changed > 0) {
             MINEFED_LOGGER.info("Block atlas: stored {} sprites at a new size ({} -> {} texels per frame)", changed, pixelsBefore, pixelsAfter);
         }
+        MINEFED_LOGGER.info("Block atlas transforms: {} ms, {} cached results, {} retained pixel bytes",
+            (System.nanoTime() - started) / 1_000_000, MINEFED_CACHE.hits() - previousHits, MINEFED_CACHE.retainedBytes());
         return result;
     }
 }

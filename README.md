@@ -129,6 +129,22 @@ native memory shrink accordingly. Settings are read from
 `maxStaticSize`, `sizeCapExcludedNamespaces`); system properties prefixed with
 `minefed.atlas.` take precedence. `maxStaticSize=0` disables the size cap.
 
+Unchanged transformed sprites can reuse their pixel results on later resource
+reloads. The cache checks SHA-256 of every original pixel plus sprite identity,
+image and animation-frame dimensions, mipmap level, and effective settings.
+It stores at most 32 MiB of output pixels and 512 entries. Current animation
+metadata always comes from the new resource pack; cached data owns no native
+images or retired resource packs. A changed pixel, frame layout or setting is
+recomputed. Results match the existing rules above, including their existing
+size cap; no additional resolution or quality reduction is introduced.
+
+Only sprites that actually changed are fingerprinted. Ordinary unchanged
+sprites keep the optimizer's early exit. Populating the cache adds one input
+scan at the first reload; later hits avoid the repeated transforms. Each reload
+logs transform time, hit count and retained pixel bytes separately from the
+rest of Minecraft's reload. PNG decoding, atlas stitching/upload and model
+loading still run normally.
+
 ## MCEF start-up (client)
 
 MCEF 2.1.6 starts Chromium, including its GPU and utility processes, when the
