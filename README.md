@@ -62,6 +62,23 @@ Table/desk shape keys, PFM's own item-renderer Mixins, and shower sounds are
 unchanged. They cannot be patched cleanly from here, or their result would
 differ. These Mixins use MixinExtras 0.5.0, which Fabric Loader 0.18.4 bundles.
 
+## PFM cache fingerprints (client)
+
+Version 1.5.0 streams each generated PFM file into SHA-256 instead of storing
+its entire contents as hexadecimal in `pfmCacheData.json`. Fingerprints carry
+a `minefed-sha256-v1:` marker. Old full-content entries are normalized when
+read, so installing this update does not by itself invalidate a valid cache
+or regenerate all furniture assets. The next ordinary PFM cache write saves
+the compact format. Removing this compatibility update makes upstream PFM
+regenerate its disposable cache once.
+
+File traversal, ordering, hidden-file/cache-file exclusions, empty-file and
+read-error behavior remain PFM's own. Each file is read again; same-size edits
+with unchanged timestamps are detected. Game/mod versions, loader and the
+registered variant list still participate in cache validation. Textures,
+models, sprite uploads, world mesh rebuilds and cache-write scheduling are
+unchanged. The Mixins run only on clients and do not modify the official JAR.
+
 ## TrafficCraft performance
 
 Version 1.3.0 wraps a few calls in the official TrafficCraft 1.20.4-1.1.3 and
@@ -163,7 +180,7 @@ Use a JDK 17 or newer:
 ./gradlew build
 ```
 
-The runtime JAR is `build/libs/minefed-client-compat-1.4.0.jar`.
+The runtime JAR is `build/libs/minefed-client-compat-1.5.0.jar`.
 The build uses Gradle 8.13 with Fabric's Mixin 0.8.7 fork and MixinExtras 0.5.0
 as compile-only dependencies. Production class and method selectors are
 explicit, so no Minecraft or PTS dependency, remapping task, or refmap is
@@ -182,7 +199,22 @@ results marked exact with the original texel.
 
 The reusable probes in `src/probe` require a local copy of the official artifact
 identified below. They check its SHA-256 and never download or redistribute it.
-Use a JDK 17 or newer, since the probe compiles its own small value/buffer fixtures:
+Use a JDK 17 or newer, since the probe compiles its own small value/buffer fixtures.
+
+`verifyPfmCache -PpfmJar=<official PFM JAR>` applies the new cache Mixins to
+the pinned official bytecode and executes its directory traversal and JSON
+parser. It checks legacy migration, compact round trips, original exclusions,
+same-timestamp edits, removals and version/loader/variant invalidation. Add
+`-PpfmCacheDir=<existing PFM cache directory>` for a read-only comparison and
+five-run warm traversal/JSON benchmark; it never writes that directory.
+`verifyAtlasSprites` also checks pixel-content, settings, frame-layout and
+mipmap invalidation, independent result ownership and bounded cache eviction.
+Its optional mod-directory run compares all cached pixels against the original
+optimizer and reports transform-only timing, excluding resource decoding,
+stitching, GPU upload and model reload. These probes do not establish whole-game
+startup or server-pack reload times.
+
+To check the PTS recipe boundary:
 
 ```sh
 ./gradlew verifyPtsCompatibility -PptsJar=/path/to/PTS-Deco-4.0.0-Fabric1.20.4.jar

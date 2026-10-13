@@ -30,6 +30,8 @@ dependencies {
     // Test-only dependencies: never included in the runtime mod JAR.
     probeImplementation 'net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7'
     probeImplementation 'io.github.llamalad7:mixinextras-common:0.5.0'
+    // The official PFM cache calls JsonArray.add(String), unavailable in Mixin's older Gson.
+    probeImplementation 'com.google.code.gson:gson:2.10.1'
     // AtlasSpriteProbe calls the pure sprite rules directly; the JAR supplies them at runtime
     probeCompileOnly sourceSets.main.output
 }
@@ -114,6 +116,19 @@ tasks.register('verifyPfmPerformance', JavaExec) {
             throw new GradleException('Supply the official PFM 1.5.0 Fabric 1.20.4 JAR using -PpfmJar=/path/to/paladin-furniture-mod-1.5.0-fabric-mc1.20.4.jar')
         }
         args = [file(pfmJarPath.get()).absolutePath, layout.buildDirectory.dir('pfm-performance-probe').get().asFile.absolutePath]
+    }
+}
+
+tasks.register('verifyPfmCache', JavaExec) {
+    group = 'verification'
+    description = 'Applies the cache Mixins to official PFM bytecode and checks streamed fingerprints and legacy cache migration.'
+    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
+    mainClass = 'PfmCacheProbe'
+    doFirst {
+        if (!pfmJarPath.isPresent()) throw new GradleException('Supply the official PFM JAR using -PpfmJar=/path/to/paladin-furniture-mod-1.5.0-fabric-mc1.20.4.jar')
+        args = [file(pfmJarPath.get()).absolutePath, layout.buildDirectory.dir('pfm-cache-probe').get().asFile.absolutePath]
+        if (providers.gradleProperty('pfmCacheDir').isPresent()) args += [file(providers.gradleProperty('pfmCacheDir').get()).absolutePath]
     }
 }
 

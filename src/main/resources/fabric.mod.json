@@ -17,6 +17,10 @@
       "environment": "client"
     },
     {
+      "config": "minefed-pfm-cache.mixins.json",
+      "environment": "client"
+    },
+    {
       "config": "minefed-wikipedia-compat.mixins.json",
       "environment": "client"
     },
