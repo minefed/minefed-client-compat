@@ -27,6 +27,7 @@ dependencies {
     compileOnly sourceSets.stubs.output
     // Minecraft supplies SLF4J at runtime
     compileOnly 'org.slf4j:slf4j-api:2.0.9'
+    compileOnly 'com.google.code.gson:gson:2.10.1'
     compileOnly 'com.google.guava:guava:32.1.2-jre'
     stubsCompileOnly 'com.google.guava:guava:32.1.2-jre'
     // Test-only dependencies: never included in the runtime mod JAR.
@@ -167,6 +168,28 @@ tasks.register('verifyPfmCompatibility', JavaExec) {
 def atlasModsDir = providers.gradleProperty('atlasModsDir')
 def minecraftJarPath = providers.gradleProperty('minecraftJar').orElse(
     new File(gradle.gradleUserHomeDir, 'caches/fabric-loom/1.20.4/minecraft-merged-intermediary.jar').absolutePath)
+def scenaJarPath = providers.gradleProperty('scenaJar').orElse(providers.provider {
+    def fixtures = fileTree(new File(gradle.gradleUserHomeDir,
+        'caches/modules-2/files-2.1/com.communi-suggestu.scena/scena-fabric/1.0.141')) {
+        include '**/scena-fabric-1.0.141.jar'
+    }.files
+    if (fixtures.size() != 1) throw new GradleException('Supply the official Scena 1.0.141 JAR using -PscenaJar=/path/to/scena-fabric-1.0.141.jar')
+    fixtures.first().absolutePath
+})
+tasks.register('verifyScenaModelCache', JavaExec) {
+    group = 'verification'
+    description = 'Checks repeated loader-absent parsing against pinned official Scena bytecode.'
+    dependsOn tasks.named('jar'), tasks.named('probeClasses')
+    classpath = sourceSets.probe.runtimeClasspath + files(tasks.named('jar').flatMap { it.archiveFile })
+    mainClass = 'ScenaModelCacheProbe'
+    maxHeapSize = '512m'
+    doFirst {
+        if (!scenaJarPath.isPresent()) throw new GradleException('Supply the official Scena 1.0.141 JAR using -PscenaJar=/path/to/scena-fabric-1.0.141.jar')
+        args = [file(scenaJarPath.get()).absolutePath, layout.buildDirectory.dir('scena-model-cache-probe').get().asFile.absolutePath]
+        if (providers.gradleProperty('scenaModelCorpusDir').isPresent()) args += [file(providers.gradleProperty('scenaModelCorpusDir').get()).absolutePath]
+    }
+}
+
 tasks.register('verifyModelVariantIndex', JavaExec) {
     group = 'verification'
     description = 'Checks indexed variant selection against the original ordered predicate scan.'
